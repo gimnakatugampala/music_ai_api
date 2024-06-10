@@ -1,0 +1,9 @@
+aiohttp
+python-dotenv
+fastapi
+uvicorn
+pydantic
+requests
+pyaudio
+keyboard
+mutagen
