@@ -1,9 +1,13 @@
 # -*- coding:utf-8 -*-
 
 import json
-
+import time
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+import subprocess 
+from fastapi import APIRouter, HTTPException
+from fastapi import BackgroundTasks
+
 
 
 import schemas
@@ -27,12 +31,7 @@ import uuid
 
 
 
-
 app = FastAPI()
-
-
-
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,6 +68,10 @@ class UserResponse(BaseModel):
     responseMsg: str
     responseCode: str
     responseData : object
+
+
+class DescriptionRequest(BaseModel):
+    description: str
     
 
 def get_password_hash(password: str) -> str:
@@ -280,6 +283,7 @@ async def fetch_and_save_music(payload: dict):
 
 # ------------ GENERATE MUSIC RIFF ------------------
 
+  
 @app.post("/generate")
 async def generate(
     data: schemas.CustomModeGenerateParam, token: str = Depends(get_token)
@@ -292,6 +296,7 @@ async def generate(
             detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# ---------------- GENERATE SUNO DESC SONG --------------------
 
 @app.post("/generate/description-mode")
 async def generate_with_song_description(
@@ -305,6 +310,8 @@ async def generate_with_song_description(
             detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+# ---------------- GENERATE SUNO DESC SONG --------------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
@@ -344,3 +351,7 @@ async def fetch_lyrics(lid: str, token: str = Depends(get_token)):
         raise HTTPException(
             detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+
+

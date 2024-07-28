@@ -52,8 +52,8 @@ def download_song(audio_url):
 		print("Failed to download the song:", response.status_code, response.text)
 
 def main():
-	description = input("Enter a description for the song you want to generate: ")
-	clip_ids = initiate_song_generation(description)
+	# description = input("Enter a description for the song you want to generate: ")
+	clip_ids = initiate_song_generation("A song about schools")
 	if clip_ids:
 		print("Waiting for the song to be processed...")
 		time.sleep(135)	# Wait for 30 seconds to give the server time to process the song
