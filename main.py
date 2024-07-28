@@ -17,6 +17,14 @@ from pydantic import BaseModel, EmailStr
 from models import Base, User
 from database import SessionLocal, engine, get_db
 import logging
+import requests
+
+import base64
+import os
+from PIL import Image
+from io import BytesIO
+import uuid
+
 
 
 
@@ -112,8 +120,12 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def sign_in(user: UserSignIn, db: Session = Depends(get_db)):
     try:
         db_user = db.query(User).filter(User.email == user.email).first()
+        if  db_user is None:
+            raise HTTPException(status_code="401", detail="User does not exist")
+        
         if not db_user or not verify_password(user.password, db_user.password):
             raise HTTPException(status_code="401", detail="Incorrect email or password")
+        
         
 
         current_user = {
@@ -169,6 +181,104 @@ def google_auth_user(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 # ------------- USER AUTH ------------------------
+
+# ------------- GET  GENERATED TEXT  ----------------
+@app.post("/generate-text-variations/")
+async def generate_variation_text(payload: dict):
+    api_url = 'https://app.riffusion.com/api/trpc/openai.generateTextVariations'
+
+    try:
+        response = requests.post(api_url, json=payload)  
+        response.raise_for_status()
+        data = response.json()
+
+        return data
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ------------- GET  GENERATED TEXT  ---------------
+
+# ------------- GENERATE IMAGE ---------------------
+def fetch_images_from_api(api_url, payload):
+    response = requests.post(api_url, json=payload)  
+    response.raise_for_status()
+    data = response.json()
+    
+    predictions = data['result']['data']['json']['predictions']
+    base64_images = [prediction['image'] for prediction in predictions]
+    return base64_images
+
+
+
+@app.post("/create-image/")
+async def fetch_and_save_image(payload: dict):
+    api_url = 'https://app.riffusion.com/api/trpc/inference.textToImageBatch'
+    output_dir = '/Projects/music_ai_api/images' 
+
+    try:
+
+        # Get the base64 images from engine
+        base64_images = fetch_images_from_api(api_url, payload)
+
+        # Save the images
+        for i, base64_image in enumerate(base64_images):
+            unique_id = uuid.uuid4()
+            filename = f"image_{unique_id}.jpeg"
+            if base64_image.startswith("data:image/jpeg;base64,"):
+                base64_string = base64_image.split("data:image/jpeg;base64,")[1]
+            image_data = base64.b64decode(base64_string)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path,"wb") as f:
+                f.write(image_data)
+
+
+        return base64_images
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ------------- GENERATE IMAGE ---------------------
+
+
+# ------------ GENERATE MUSIC RIFF ------------------
+def fetch_music_from_api(api_url, payload):
+    response = requests.post(api_url, json=payload)  
+    response.raise_for_status()
+    data = response.json()
+    
+    predictions = data['result']['data']['json']['predictions']
+    base64_audio = [prediction['audio'] for prediction in predictions]
+    return base64_audio
+
+@app.post("/generate-music/")
+async def fetch_and_save_music(payload: dict):
+    api_url = 'https://app.riffusion.com/api/trpc/inference.textToAudioBatch'
+    output_dir = '/Projects/music_ai_api/songs' 
+
+    try:
+
+        # Sanitize Audio
+        base64_audio = fetch_music_from_api(api_url, payload)
+
+         # Save the Audio
+        for i, base64_image in enumerate(base64_audio):
+            unique_id = uuid.uuid4()
+            filename = f"song_{unique_id}.mp3"
+            if base64_image.startswith("data:audio/mpeg;base64,"):
+                base64_string = base64_image.split("data:audio/mpeg;base64,")[1]
+            image_data = base64.b64decode(base64_string)
+            output_path = os.path.join(output_dir, filename)
+            with open(output_path,"wb") as f:
+                f.write(image_data)
+
+        return {"message": "Audio saved successfully"}
+        # return base64_audio
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ------------ GENERATE MUSIC RIFF ------------------
 
 @app.post("/generate")
 async def generate(
