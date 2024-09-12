@@ -9,3 +9,8 @@ keyboard
 mutagen
 python-multipart
 pillow
+sqlalchemy
+passlib
+pymysql
+pydantic[email]
+bcrypt

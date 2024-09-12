@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi import BackgroundTasks
 
 
-
+import httpx
 import schemas
 from deps import get_token
 from utils import generate_lyrics, generate_music, get_feed, get_lyrics
@@ -29,6 +29,7 @@ from PIL import Image
 from io import BytesIO
 import uuid
 
+from manualprompt import initiate_song_generation
 
 
 app = FastAPI()
@@ -73,6 +74,11 @@ class UserResponse(BaseModel):
 class DescriptionRequest(BaseModel):
     description: str
     
+
+class DescriptionModeGenerateParam(BaseModel):
+    gpt_description_prompt: str
+    make_instrumental: bool = False
+    mv: str = "chirp-v3-0"
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
@@ -355,3 +361,11 @@ async def fetch_lyrics(lid: str, token: str = Depends(get_token)):
 
 
 
+@app.post("/suno")
+async def generate_song_with_description():
+    try:
+        # Call the asynchronous function
+        result = await initiate_song_generation("A song about schools")
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
