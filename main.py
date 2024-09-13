@@ -210,105 +210,65 @@ async def generate_variation_text(payload: dict):
 # ------------- GET  GENERATED TEXT  ---------------
 
 # ------------- GENERATE IMAGE ---------------------
-  # Sample response data
-response_data = {
-    "result": {
-        "data": {
-            "json": {
-                "outputs": [
-                    {
-                        "variation": "electronic pop with catchy synth hooks, female ballad, futuristic, dreamy vocals, AI",
-                        "fNames": 0,
-                        "concepts": "AI",
-                        "visual": "a surreal digital world with floating synth keys and a female figure interacting with AI entities, ethereal, neon lights",
-                        "title": "Digital Dreams and AI Whispers",
-                        "blocked": 0,
-                        "id": "296d6d79-229e-46e6-8668-3a6402309606"
-                    },
-                    {
-                        "variation": "indie rock, electric guitar, female ballad, raw emotional vocals, AI",
-                        "fNames": 0,
-                        "concepts": "AI",
-                        "visual": "a mystical forest with electric guitars growing from the ground and a female figure pondering the mysteries of AI, organic, enchanted",
-                        "title": "Digital Dreams and AI Whispers",
-                        "blocked": 0,
-                        "id": "7967553d-f543-4bed-a598-2260852cd3f5"
-                    },
-                    {
-                        "variation": "big band swing jazz, classic horns, swinging rhythms, AI",
-                        "fNames": 0,
-                        "concepts": "AI",
-                        "visual": "a bustling cityscape with jazz musicians performing on rooftops and a vintage AI robot dancing in the streets, jazzy, retro-futuristic",
-                        "title": "Digital Dreams and AI Whispers",
-                        "blocked": 0,
-                        "id": "0854b79d-5578-4a03-b27c-c0f79ff07fe8"
-                    }
-                ],
-                "group_id": "7f83b19a-6c41-44b7-b275-12174411b0f7"
-            }
-        }
-    }
-}
-
-# Extract the second and third objects
-visual_prompts = [
-    response_data["result"]["data"]["json"]["outputs"][1]["visual"],
-    response_data["result"]["data"]["json"]["outputs"][2]["visual"]
-]
-
-
-
-
-
-
-
-@app.post("/create-image/")
-async def fetch_and_save_image():
-    api_url = "https://ai-api.magicstudio.com/api/ai-art-generator"
-    output_dir = '/music_ai_api/images' 
-
-    
-    try:
-
-        form_data = {
-        'prompt': (None, 'sri lanka'),
-        'output_format': (None, 'bytes'),
+def generate_image(api_url, visual):
+    """Generate an image from the visual prompt using the API."""
+    form_data = {
+        'prompt': (None, visual),  # Use the visual prompt for each request
+        'output_format': (None, 'bytes'),  # Request image in bytes
         'user_profile_id': (None, 'null'),
         'anonymous_user_id': (None, '12356e77-a740-432c-bd5a-f151bb8bf16c'),
         'request_timestamp': (None, '1726040383.616'),
         'user_is_subscribed': (None, 'false'),
         'client_id': (None, 'pSgX7WgjukXCBoYwDM8G8GLnRRkvAoJlqa5eAVvj95o')
-        }
+    }
 
-    
-     # Send the POST request to the API
-        response = requests.post(api_url, files=form_data)
+    response = requests.post(api_url, files=form_data)
 
-        # Check if the response is successful
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Failed to fetch image from API")
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch image from API")
 
-        # The response is in bytes, so no need for JSON parsing
-        image_data = response.content
+    return response.content
 
-        # Generate a unique filename for the image
-        unique_id = uuid.uuid4()
-        filename = f"image_{unique_id}.jpeg"
+def save_image(image_data, output_dir):
+    """Save the image data to the specified directory."""
+    unique_id = uuid.uuid4()
+    filename = f"image_{unique_id}.jpeg"
+    output_path = os.path.join(output_dir, filename)
+    output_path = os.path.normpath(output_path)
 
-        # Ensure the output directory exists
-        os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
 
-        # Create the full output path
-        output_path = os.path.join(output_dir, filename)
+    with open(output_path, "wb") as f:
+        f.write(image_data)
 
-        # Save the image to the output directory
-        with open(output_path, "wb") as f:
-            f.write(image_data)
+    return output_path
 
-        return {"message": "Image saved successfully", "file_path": output_path}
+
+@app.post("/create-image/")
+async def fetch_and_save_image(payload: dict):
+    image_api_url = "https://ai-api.magicstudio.com/api/ai-art-generator"
+    output_dir = '/NIBM/music_ai_api/images'  # Directory where images will be saved
+
+    try:
+        # Step 1: Fetch text variations to get visual prompts
+        text_variation_data = await generate_variation_text(payload)
+        
+        # Extract visuals from the response (use only 2 of 3)
+        outputs = text_variation_data["result"]["data"]["json"]["outputs"]
+        visual_prompts = [outputs[0]["visual"], outputs[1]["visual"]]
+
+        # Step 2: Generate and save images based on the visuals
+        saved_files = []
+        for visual in visual_prompts:
+            image_data = generate_image(image_api_url, visual)
+            file_path = save_image(image_data, output_dir)
+            saved_files.append(file_path)
+
+        # Step 3: Return a success message
+        return {"status_code": 200, "message": "Images saved successfully"}
+
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 # ------------- GENERATE IMAGE ---------------------
 
 
