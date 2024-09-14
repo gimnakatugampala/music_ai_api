@@ -191,7 +191,7 @@ def google_auth_user(user: UserCreate, db: Session = Depends(get_db)):
 
 # ------------- USER AUTH ------------------------
 
-# ------------- GET  GENERATED TEXT  ----------------
+# ------------- GET GENERATED TEXT VARIATIONS ----------------
 @app.post("/generate-text-variations/")
 async def generate_variation_text(payload: dict):
     api_url = 'https://app.riffusion.com/api/trpc/openai.generateTextVariations'
@@ -205,9 +205,6 @@ async def generate_variation_text(payload: dict):
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# ------------- GET  GENERATED TEXT  ---------------
 
 # ------------- GENERATE IMAGE ---------------------
 def generate_image(api_url, visual):
@@ -244,32 +241,33 @@ def save_image(image_data, output_dir):
     return output_path
 
 
-@app.post("/create-image/")
-async def fetch_and_save_image(payload: dict):
+# ------------- GENERATE IMAGES BASED ON VISUALS ---------------------
+@app.post("/create-images/")
+async def create_images(payload: dict):
     image_api_url = "https://ai-api.magicstudio.com/api/ai-art-generator"
     output_dir = '/NIBM/music_ai_api/images'  # Directory where images will be saved
 
     try:
-        # Step 1: Fetch text variations to get visual prompts
-        text_variation_data = await generate_variation_text(payload)
+        # Extract visuals from the text variation response
+        outputs = payload["result"]["data"]["json"]["outputs"]
         
-        # Extract visuals from the response (use only 2 of 3)
-        outputs = text_variation_data["result"]["data"]["json"]["outputs"]
+        # Take only the first two visuals
         visual_prompts = [outputs[0]["visual"], outputs[1]["visual"]]
 
-        # Step 2: Generate and save images based on the visuals
+        # Generate and save images based on the visuals
         saved_files = []
         for visual in visual_prompts:
             image_data = generate_image(image_api_url, visual)
             file_path = save_image(image_data, output_dir)
             saved_files.append(file_path)
 
-        # Step 3: Return a success message
-        return {"status_code": 200, "message": "Images saved successfully"}
+        # Return success message with file paths
+        return {"status_code": 200, "message": "Images saved successfully", "file_paths": saved_files}
 
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid response structure: {str(e)}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
-# ------------- GENERATE IMAGE ---------------------
 
 
 # ------------ GENERATE MUSIC RIFF ------------------
