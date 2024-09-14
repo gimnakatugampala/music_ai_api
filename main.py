@@ -270,44 +270,6 @@ async def create_images(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ------------ GENERATE MUSIC RIFF ------------------
-def fetch_music_from_api(api_url, payload):
-    response = requests.post(api_url, json=payload)  
-    response.raise_for_status()
-    data = response.json()
-    
-    predictions = data['result']['data']['json']['predictions']
-    base64_audio = [prediction['audio'] for prediction in predictions]
-    return base64_audio
-
-@app.post("/generate-music/")
-async def fetch_and_save_music(payload: dict):
-    api_url = 'https://app.riffusion.com/api/trpc/inference.textToAudioBatch'
-    output_dir = '/Projects/music_ai_api/songs' 
-
-    try:
-
-        # Sanitize Audio
-        base64_audio = fetch_music_from_api(api_url, payload)
-
-         # Save the Audio
-        for i, base64_image in enumerate(base64_audio):
-            unique_id = uuid.uuid4()
-            filename = f"song_{unique_id}.mp3"
-            if base64_image.startswith("data:audio/mpeg;base64,"):
-                base64_string = base64_image.split("data:audio/mpeg;base64,")[1]
-            image_data = base64.b64decode(base64_string)
-            output_path = os.path.join(output_dir, filename)
-            with open(output_path,"wb") as f:
-                f.write(image_data)
-
-        return {"message": "Audio saved successfully"}
-        # return base64_audio
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ------------ GENERATE MUSIC RIFF ------------------
 
   
 @app.post("/generate")

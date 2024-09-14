@@ -1,10 +1,8 @@
-
+#uvicorn main:app
+import os
 import requests
 from dotenv import load_dotenv
 import time
-import os
-import aiohttp
-import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,27 +13,30 @@ def get_audio_url_from_clip_id(clip_id):
 	print(f"Constructed Audio URL: {audio_url}")
 	return audio_url
 
-async def initiate_song_generation(description):
-    url = "http://127.0.0.1:8000/generate/description-mode"
-    headers = {
-        'Cookie': f'session_id={os.getenv("SESSION_ID")}; {os.getenv("COOKIE")}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        "gpt_description_prompt": description,
-        "make_instrumental": False,
-        "mv": "chirp-v3-0"
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=data, headers=headers) as response:
-            print(f"Received response with status: {response.status}")
-            if response.status == 200:
-                return await response.json()
-            else:
-                error_text = await response.text()
-                print(f"Error response: {error_text}")
-                return {"error": error_text}
+def initiate_song_generation(description):
+	url = "http://127.0.0.1:8000/generate/description-mode"
+	headers = {
+		'Cookie': f'session_id={os.getenv("SESSION_ID")}; {os.getenv("COOKIE")}'
+	}
+	data = {
+		"gpt_description_prompt": description,
+		"make_instrumental": False,
+		"mv": "chirp-v3-0"
+	}
+	response = requests.post(url, json=data, headers=headers)
+	if response.status_code == 200:
+		response_data = response.json()
+		print("Response Data from Generation:", response_data)
+		if 'clips' in response_data and response_data['clips']:
+			clip_ids = [clip['id'] for clip in response_data['clips']]
+			print(f"Clip IDs found: {clip_ids}")
+			return clip_ids
+		else:
+			print("No clips generated or available in response.")
+			return None
+	else:
+		print("Failed to initiate song generation:", response.status_code, response.text)
+		return None
 
 def download_song(audio_url):
 	headers = {
@@ -51,8 +52,8 @@ def download_song(audio_url):
 		print("Failed to download the song:", response.status_code, response.text)
 
 def main():
-	# description = input("Enter a description for the song you want to generate: ")
-	clip_ids = initiate_song_generation("A song about schools")
+	description = input("Enter a description for the song you want to generate: ")
+	clip_ids = initiate_song_generation(description)
 	if clip_ids:
 		print("Waiting for the song to be processed...")
 		time.sleep(135)	# Wait for 30 seconds to give the server time to process the song

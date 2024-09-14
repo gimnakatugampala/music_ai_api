@@ -93,7 +93,7 @@ def set_id3_tags(mp3_file_path, title, lyrics):
 	print(f"ID3 tags set for {mp3_file_path}")
 
 def play_song_with_ffplay(file_paths, titles, description_prompts, lyrics, generated_with_file):
-	ffplay_path = r"C:\Program Files (x86)\ffmpeg\bin\ffplay.exe"
+	ffplay_path = r"C:\ffmpeg\bin\ffplay.exe"
 	current_song_index = 0
 	current_process = None	# Initialize current process variable to keep track of the playing song
 
