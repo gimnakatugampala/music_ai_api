@@ -8,6 +8,7 @@ import subprocess
 from fastapi import APIRouter, HTTPException
 from fastapi import BackgroundTasks
 
+from fastapi.responses import JSONResponse
 
 import httpx
 import schemas
@@ -197,13 +198,20 @@ async def generate_variation_text(payload: dict):
     api_url = 'https://app.riffusion.com/api/trpc/openai.generateTextVariations'
 
     try:
-        response = requests.post(api_url, json=payload)  
+        # Make the POST request to the external API
+        response = requests.post(api_url, json=payload)
+        
+        # Raise an exception if the request fails
         response.raise_for_status()
+        
+        # Parse the JSON response
         data = response.json()
 
-        return data
+        # Return the response with status code 200
+        return JSONResponse(status_code=200, content=data)
 
     except requests.exceptions.RequestException as e:
+        # In case of error, raise an HTTPException with status 500
         raise HTTPException(status_code=500, detail=str(e))
 
 # ------------- GENERATE IMAGE ---------------------
@@ -268,10 +276,116 @@ async def create_images(payload: dict):
         raise HTTPException(status_code=400, detail=f"Invalid response structure: {str(e)}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
 
 
+# -------------------------------- GENERATE SONG USING SUNO BY DESCRIPTION ---------------------------
 
-  
+class SongDescriptionRequest(BaseModel):
+    description: str
+
+def initiate_song_generation(description: str):
+    """Initiate the song generation process with the given description and return the clip IDs."""
+    url = "http://127.0.0.1:8000/generate/description-mode"
+    headers = {
+        'Authorization': f'Bearer {os.getenv("AUTH_TOKEN")}',
+        'Content-Type': 'application/json',
+    }
+    data = {
+        "gpt_description_prompt": description,
+        "make_instrumental": False,
+        "mv": "chirp-v3-0"
+    }
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        response.raise_for_status()
+        response_data = response.json()
+        print("--------------------------------------")
+        print(response_data)
+        print("--------------------------------------")
+        if 'clips' in response_data and response_data['clips']:
+            clip_ids = [clip['id'] for clip in response_data['clips']]
+            return clip_ids
+        raise HTTPException(status_code=400, detail="No clips generated or available in response.")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to initiate song generation: {e}")
+
+def get_audio_url_from_clip_id(clip_id: str) -> str:
+    """Construct the audio URL from the clip ID."""
+    audio_url = f"https://cdn1.suno.ai/{clip_id}.mp3"
+    print("----------------------------------")
+    print("audio : "+ audio_url)
+    print("----------------------------------")
+    return audio_url
+
+def download_song(clip_id: str):
+    """Download the song from the audio URL in the background and save it to the 'songs' folder."""
+    # Construct the audio URL
+    audio_url = get_audio_url_from_clip_id(clip_id)
+    
+    # Define the directory to store the songs
+    songs_folder = "songs"
+    
+    # Create the folder if it doesn't exist
+    if not os.path.exists(songs_folder):
+        os.makedirs(songs_folder)
+    
+    # Set headers for the request
+    headers = {
+        'Authorization': f'Bearer {os.getenv("AUTH_TOKEN")}',
+        'Referer': 'https://suno.com',
+        'Origin': 'https://suno.com',
+    }
+    
+    # Make the request to download the song
+    response = requests.get(audio_url, headers=headers)
+    
+    if response.status_code == 200:
+        # Extract the filename from the audio URL
+        filename = audio_url.split('/')[-1]
+        
+        # Create the full path where the song will be saved
+        file_path = os.path.join(songs_folder, filename)
+        
+        # Save the song to the specified folder
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"Song downloaded successfully: {file_path}")
+    else:
+        print(f"Failed to download the song: {response.status_code} - {response.text}")
+
+
+@app.post("/generate-song/")
+def generate_song(description_request: SongDescriptionRequest, background_tasks: BackgroundTasks):
+    """
+    Start the song generation process, show the first clip, and download remaining clips in the background.
+    :param description_request: SongDescriptionRequest model.
+    :param background_tasks: BackgroundTasks to handle downloading in the background.
+    """
+    description = description_request.description
+    clip_ids = initiate_song_generation(description)
+
+    # Wait for a short period to give the server time to process the song
+    time.sleep(135)  # Adjust the sleep time as needed
+
+    if not clip_ids:
+        raise HTTPException(status_code=400, detail="No clips generated")
+
+    # Process the first clip synchronously and return it
+    first_clip_id = clip_ids.pop(0)
+    first_filename = download_song(first_clip_id)
+    
+    # Queue the rest of the clips to be downloaded in the background
+    for clip_id in clip_ids:
+        background_tasks.add_task(download_song, clip_id)
+
+    return {
+        "detail": "Song generation started. The first clip is ready, and the rest will be downloaded in the background.",
+        "first_clip": first_filename
+    }
+# ---------------------------------------------------
+
 @app.post("/generate")
 async def generate(
     data: schemas.CustomModeGenerateParam, token: str = Depends(get_token)
