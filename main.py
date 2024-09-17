@@ -10,6 +10,8 @@ from fastapi import BackgroundTasks
 from typing import Optional , List
 
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+
 
 
 import httpx
@@ -257,6 +259,9 @@ def save_image(image_data, output_dir):
 
     # Normalize the path to use forward slashes
     return output_path.replace("\\", "/").lstrip('./')
+
+app.mount("/images", StaticFiles(directory="images"), name="images")
+
 
 # ------------- GENERATE IMAGES BASED ON VISUALS ---------------------
 @app.post("/create-images/")
