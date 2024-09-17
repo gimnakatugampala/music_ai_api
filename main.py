@@ -270,13 +270,13 @@ async def create_images(payload: dict):
     output_dir = './images'  # Directory where images will be saved
 
     try:
-        # Extract visuals from the text variation response
-        outputs = payload["result"]["data"]["json"]["outputs"]
-        
-        # Take only the first two visuals
-        visual_prompts = [outputs[0]["visual"], outputs[1]["visual"]]
+        # Expecting 'visuals' in the payload as a list of visual prompts
+        visual_prompts = payload.get("visuals", [])
 
-        # Generate and save images based on the visuals
+        if not visual_prompts or not isinstance(visual_prompts, list):
+            raise HTTPException(status_code=400, detail="Invalid or missing 'visuals' field")
+
+        # Generate and save images based on the visual prompts
         saved_files = []
         for visual in visual_prompts:
             image_data = generate_image(image_api_url, visual)
