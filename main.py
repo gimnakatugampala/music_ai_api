@@ -247,21 +247,22 @@ def save_image(image_data, output_dir):
     unique_id = uuid.uuid4()
     filename = f"image_{unique_id}.jpeg"
     output_path = os.path.join(output_dir, filename)
-    output_path = os.path.normpath(output_path)
+    
+    # Ensure directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
-    os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
-
+    # Save the image
     with open(output_path, "wb") as f:
         f.write(image_data)
 
-    return output_path
-
+    # Normalize the path to use forward slashes
+    return output_path.replace("\\", "/").lstrip('./')
 
 # ------------- GENERATE IMAGES BASED ON VISUALS ---------------------
 @app.post("/create-images/")
 async def create_images(payload: dict):
     image_api_url = "https://ai-api.magicstudio.com/api/ai-art-generator"
-    output_dir = '/NIBM/music_ai_api/images'  # Directory where images will be saved
+    output_dir = './images'  # Directory where images will be saved
 
     try:
         # Extract visuals from the text variation response
@@ -284,8 +285,6 @@ async def create_images(payload: dict):
         raise HTTPException(status_code=400, detail=f"Invalid response structure: {str(e)}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-
 
 
 # -------------------------------- GENERATE SONG USING SUNO BY DESCRIPTION ---------------------------
