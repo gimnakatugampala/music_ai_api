@@ -28,3 +28,16 @@ class Song(Base):
     created_date = Column(DateTime, default=datetime.utcnow)
     song_type_id = Column(Integer)
     user_id = Column(Integer)
+
+class SongItem(Base):
+    __tablename__ = "song_item"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cover_img = Column(String, nullable=False)
+    visual_desc = Column(Text, nullable=True)
+    variation = Column(Text, nullable=True)
+    audio_stream_url = Column(String, nullable=False)
+    audio_download_url = Column(String, nullable=True)
+    generated_song_id = Column(Integer, nullable=False)
+    clip_id = Column(Integer, nullable=False)
+

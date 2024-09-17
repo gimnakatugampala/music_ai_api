@@ -21,7 +21,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from models import Base, User , Song
+from models import Base, User , Song , SongItem
 from database import SessionLocal, engine, get_db
 import logging
 import requests
@@ -483,6 +483,41 @@ def create_song(song: SongCreate, db: Session = Depends(get_db)):
 
 
 # ------------- ADD SONG -------------------
+
+# -------------- ADD SONG ITEM -----------------
+
+class SongItemCreate(BaseModel):
+    cover_img: str
+    visual_desc: Optional[str]
+    variation: Optional[str]
+    audio_stream_url: str
+    audio_download_url: Optional[str]
+    generated_song_id: int
+    clip_id: int
+
+class SongItemResponse(BaseModel):
+    id: int
+    cover_img: str
+    visual_desc: Optional[str]
+    variation: Optional[str]
+    audio_stream_url: str
+    audio_download_url: Optional[str]
+    generated_song_id: int
+    clip_id: int
+
+@app.post("/add-song-item/", response_model=SongItemResponse)
+def create_song_item(song_item: SongItemCreate, db: Session = Depends(get_db)):
+    try:
+        db_song_item = SongItem(**song_item.dict())
+        db.add(db_song_item)
+        db.commit()
+        db.refresh(db_song_item)
+        return db_song_item
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error adding song item: {e}")
+
+# -------------- ADD SONG ITEM -----------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
