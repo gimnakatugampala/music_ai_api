@@ -1,5 +1,7 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+
 from datetime import datetime
 
 Base = declarative_base()
@@ -16,3 +18,13 @@ class User(Base):
     created_date = Column(DateTime, default=datetime.utcnow)
     disabled = Column(Boolean, default=False)
 
+class Song(Base):
+    __tablename__ = "generated_song"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    user_song_description = Column(Text, nullable=True)
+    custom_lyrics = Column(Text, nullable=True)
+    created_date = Column(DateTime, default=datetime.utcnow)
+    song_type_id = Column(Integer)
+    user_id = Column(Integer)

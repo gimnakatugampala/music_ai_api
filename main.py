@@ -7,8 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import subprocess 
 from fastapi import APIRouter, HTTPException
 from fastapi import BackgroundTasks
+from typing import Optional
 
 from fastapi.responses import JSONResponse
+
 
 import httpx
 import schemas
@@ -19,7 +21,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from models import Base, User
+from models import Base, User , Song
 from database import SessionLocal, engine, get_db
 import logging
 import requests
@@ -86,6 +88,8 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+
+
 
 @app.post("/signup/", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -192,6 +196,10 @@ def google_auth_user(user: UserCreate, db: Session = Depends(get_db)):
 
 # ------------- USER AUTH ------------------------
 
+
+
+
+
 # ------------- GET GENERATED TEXT VARIATIONS ----------------
 @app.post("/generate-text-variations/")
 async def generate_variation_text(payload: dict):
@@ -277,6 +285,7 @@ async def create_images(payload: dict):
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+
 
 
 # -------------------------------- GENERATE SONG USING SUNO BY DESCRIPTION ---------------------------
@@ -405,8 +414,11 @@ async def generate_with_song_description(
     data: schemas.DescriptionModeGenerateParam, token: str = Depends(get_token)
 ):
     try:
+        # Call the function to generate the music using the description
         resp = await generate_music(data.dict(), token)
-        return resp
+
+        # Return both the response and the token
+        return {"response": resp, "token": token}
     except Exception as e:
         raise HTTPException(
             detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -414,6 +426,63 @@ async def generate_with_song_description(
 
 
 # ---------------- GENERATE SUNO DESC SONG --------------------
+
+
+# ------------- ADD SONG -------------------
+class SongCreate(BaseModel):
+    title: str
+    user_song_description: Optional[str]
+    custom_lyrics: Optional[str]
+    song_type_id: int
+    user_id: int
+
+class SongResponse(BaseModel):
+    responseMsg: str
+    responseCode: str
+    responseData: SongCreate
+
+@app.post("/add-songs/", response_model=SongResponse)
+def create_song(song: SongCreate, db: Session = Depends(get_db)):
+    try:
+        # Prepare the data for inserting
+        new_song_data = {
+            "title": song.title,
+            "user_song_description": song.user_song_description,
+            "custom_lyrics": song.custom_lyrics,
+            "song_type_id": song.song_type_id,
+            "created_date": datetime.utcnow(),
+            "user_id": song.user_id
+        }
+
+        # Create the song record
+        db_song = Song(**new_song_data)
+        db.add(db_song)
+        db.commit()
+        db.refresh(db_song)
+
+        # Create a response data object
+        song_response_data = {
+            "id": db_song.id,
+            "title": db_song.title,
+            "user_song_description": db_song.user_song_description,
+            "custom_lyrics": db_song.custom_lyrics,
+            "created_date": db_song.created_date,
+            "song_type_id": db_song.song_type_id,
+            "user_id": db_song.user_id
+        }
+
+        # Return success response
+        return SongResponse(responseMsg="Song created", responseCode="200", responseData=song_response_data)
+
+    except HTTPException as http_exc:
+        return SongResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code, responseData=None)
+    except Exception as e:
+        logging.error(f"Error creating song: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+# ------------- ADD SONG -------------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
