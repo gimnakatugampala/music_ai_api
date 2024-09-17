@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import subprocess 
 from fastapi import APIRouter, HTTPException
 from fastapi import BackgroundTasks
-from typing import Optional
+from typing import Optional , List
 
 from fastapi.responses import JSONResponse
 
@@ -542,6 +542,71 @@ def create_song_item(song_item: SongItemCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error adding song item: {e}")
 
 # -------------- ADD SONG ITEM -----------------
+
+
+# ---------- GET ALL SONGS -------------
+class SongItemDetail(BaseModel):
+    id: int
+    cover_img: str
+    visual_desc: Optional[str]
+    variation: Optional[str]
+    audio_stream_url: str
+    audio_download_url: Optional[str]
+    generated_song_id: int
+    clip_id: int
+
+class SongDetail(BaseModel):
+    id: int
+    title: str
+    song_items: List[SongItemDetail]
+
+class ApiResponse(BaseModel):
+    responseMsg: str
+    responseCode: str
+    responseData: List[SongDetail]
+
+
+@app.get("/get-song/{user_id}", response_model=ApiResponse)
+def get_song_and_items(user_id: int, db: Session = Depends(get_db)):
+    try:
+        # Query for the songs based on user_id
+        songs = db.query(Song).filter(Song.user_id == user_id).all()
+
+        if not songs:
+            raise HTTPException(status_code=404, detail="No songs found for this user")
+
+        # Prepare response data
+        song_data = []
+        for song in songs:
+            # Convert the SQLAlchemy model instance to the Pydantic model
+            song_item_data = [
+                SongItemDetail(
+                    id=item.id,
+                    cover_img=item.cover_img,
+                    visual_desc=item.visual_desc,
+                    variation=item.variation,
+                    audio_stream_url=item.audio_stream_url,
+                    audio_download_url=item.audio_download_url,
+                    generated_song_id=item.generated_song_id,
+                    clip_id=item.clip_id
+                ) for item in song.song_items
+            ]
+
+            song_data.append(SongDetail(
+                id=song.id,
+                title=song.title,
+                song_items=song_item_data
+            ))
+
+        return ApiResponse(
+            responseMsg="Songs and song items retrieved successfully",
+            responseCode="200",
+            responseData=song_data
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving song and items: {e}")
+# ---------- GET ALL SONGS -------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
