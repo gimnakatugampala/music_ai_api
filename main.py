@@ -505,14 +505,38 @@ class SongItemResponse(BaseModel):
     generated_song_id: int
     clip_id: int
 
-@app.post("/add-song-item/", response_model=SongItemResponse)
+class SuccessResponse(BaseModel):
+    responseMsg: str
+    responseCode: str
+    responseData: SongItemResponse
+
+@app.post("/add-song-item/", response_model=SuccessResponse)
 def create_song_item(song_item: SongItemCreate, db: Session = Depends(get_db)):
     try:
         db_song_item = SongItem(**song_item.dict())
         db.add(db_song_item)
         db.commit()
         db.refresh(db_song_item)
-        return db_song_item
+
+        # Convert the SQLAlchemy model instance to the Pydantic model
+        song_item_response = SongItemResponse(
+            id=db_song_item.id,
+            cover_img=db_song_item.cover_img,
+            visual_desc=db_song_item.visual_desc,
+            variation=db_song_item.variation,
+            audio_stream_url=db_song_item.audio_stream_url,
+            audio_download_url=db_song_item.audio_download_url,
+            generated_song_id=db_song_item.generated_song_id,
+            clip_id=db_song_item.clip_id
+        )
+
+        # Return success response
+        return SuccessResponse(
+            responseMsg="Song item created successfully",
+            responseCode="200",
+            responseData=song_item_response
+        )
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error adding song item: {e}")
