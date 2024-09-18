@@ -562,6 +562,7 @@ class SongItemDetail(BaseModel):
 class SongDetail(BaseModel):
     id: int
     title: str
+    created_date: datetime  # Include created_date field here
     song_items: List[SongItemDetail]
 
 class ApiResponse(BaseModel):
@@ -570,9 +571,17 @@ class ApiResponse(BaseModel):
     responseData: List[SongDetail]
 
 
-@app.get("/get-song/{user_id}", response_model=ApiResponse)
-def get_song_and_items(user_id: int, db: Session = Depends(get_db)):
+@app.get("/get-song-by-email/{email}", response_model=ApiResponse)
+def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
     try:
+        # Query for the user based on email
+        user = db.query(User).filter(User.email == email).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_id = user.id
+
         # Query for the songs based on user_id
         songs = db.query(Song).filter(Song.user_id == user_id).all()
 
@@ -599,6 +608,7 @@ def get_song_and_items(user_id: int, db: Session = Depends(get_db)):
             song_data.append(SongDetail(
                 id=song.id,
                 title=song.title,
+                created_date=song.created_date,  # Include created_date here
                 song_items=song_item_data
             ))
 
