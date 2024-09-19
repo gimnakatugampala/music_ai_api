@@ -102,15 +102,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         
         hashed_password = get_password_hash(user.password)
 
-        current_user = {
-        "profile_img": user.profile_img,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-        }
-
         db_user = User(
-            profile_img = user.profile_img,
+            profile_img=user.profile_img,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
@@ -121,63 +114,76 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
 
-      
+        # Include user_id in the response
+        current_user = {
+            "user_id": db_user.id,  # Add user ID to response
+            "profile_img": db_user.profile_img,
+            "first_name": db_user.first_name,
+            "last_name": db_user.last_name,
+            "email": db_user.email,
+        }
         
-        return UserResponse(responseMsg="User created", responseCode="200",responseData=current_user)
+        return UserResponse(responseMsg="User created", responseCode="200", responseData=current_user)
+    
     except HTTPException as http_exc:
-        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code,responseData=None)
+        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code, responseData=None)
     except Exception as e:
         logging.error(f"Error creating user: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
 @app.post("/signin/", response_model=UserResponse)
 def sign_in(user: UserSignIn, db: Session = Depends(get_db)):
     try:
         db_user = db.query(User).filter(User.email == user.email).first()
-        if  db_user is None:
+        if db_user is None:
             raise HTTPException(status_code="401", detail="User does not exist")
         
-        if not db_user or not verify_password(user.password, db_user.password):
+        if not verify_password(user.password, db_user.password):
             raise HTTPException(status_code="401", detail="Incorrect email or password")
-        
-        
 
+        # Include user_id in the response
         current_user = {
-            "email": user.email,
-            }
+            "user_id": db_user.id,  # Add user ID to response
+            "email": db_user.email,
+        }
         
-        return UserResponse(responseMsg="Sign-in successful", responseCode="200",responseData=current_user)
+        return UserResponse(responseMsg="Sign-in successful", responseCode="200", responseData=current_user)
+    
     except HTTPException as http_exc:
-        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code,responseData=None)
+        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code, responseData=None)
     except Exception as e:
         logging.error(f"Error signing in user: {e}")
-        raise HTTPException(status_code="500", detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
 @app.post("/google-auth/", response_model=UserResponse)
 def google_auth_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        current_user = {
-            "profile_img": user.profile_img,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email,
-            }
-        
         db_user = db.query(User).filter(User.email == user.email).first()
+
         if db_user:
-            if not db_user or not verify_password(user.password, db_user.password):
+            if not verify_password(user.password, db_user.password):
                 raise HTTPException(status_code="401", detail="Incorrect email or password")
             
-    
+            # Include user_id in the response
+            current_user = {
+                "user_id": db_user.id,  # Add user ID to response
+                "profile_img": db_user.profile_img,
+                "first_name": db_user.first_name,
+                "last_name": db_user.last_name,
+                "email": db_user.email,
+            }
             
-            return UserResponse(responseMsg="Sign-in successful", responseCode="200",responseData=current_user)
+            return UserResponse(responseMsg="Sign-in successful", responseCode="200", responseData=current_user)
         
         hashed_password = get_password_hash(user.password)
+
         db_user = User(
-            profile_img = user.profile_img,
+            profile_img=user.profile_img,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
@@ -187,14 +193,25 @@ def google_auth_user(user: UserCreate, db: Session = Depends(get_db)):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        
-        return UserResponse(responseMsg="User created", responseCode="200",responseData=current_user)
+
+        # Include user_id in the response
+        current_user = {
+            "user_id": db_user.id,  # Add user ID to response
+            "profile_img": db_user.profile_img,
+            "first_name": db_user.first_name,
+            "last_name": db_user.last_name,
+            "email": db_user.email,
+        }
+
+        return UserResponse(responseMsg="User created", responseCode="200", responseData=current_user)
+
     except HTTPException as http_exc:
-        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code,responseData=None)
+        return UserResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code, responseData=None)
     except Exception as e:
         logging.error(f"Error creating user: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 # ------------- USER AUTH ------------------------
 
@@ -621,6 +638,13 @@ def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving song and items: {e}")
 # ---------- GET ALL SONGS -------------
+
+
+# ----------------------- DOWNLOAD THE SONGS TO THE LOCAL SERVER FORM THE STREAMING LINK --------------------
+
+
+
+# ----------------------- DOWNLOAD THE SONGS TO THE LOCAL SERVER FORM THE STREAMING LINK --------------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
