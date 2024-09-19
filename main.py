@@ -615,7 +615,12 @@ def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == email).first()
 
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            return ApiResponse(
+                responseMsg="No User Found",
+                responseCode="404",
+                responseData=[]
+            )
+
 
         user_id = user.id
 
@@ -623,7 +628,11 @@ def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
         songs = db.query(Song).filter(Song.user_id == user_id).all()
 
         if not songs:
-            raise HTTPException(status_code=404, detail="No songs found for this user")
+            return ApiResponse(
+                responseMsg="No Songs Found",
+                responseCode="404",
+                responseData=[]
+            )
 
         # Prepare response data
         song_data = []
