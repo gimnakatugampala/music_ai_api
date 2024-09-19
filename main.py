@@ -594,7 +594,7 @@ class SongItemDetail(BaseModel):
     audio_stream_url: str
     audio_download_url: Optional[str]
     generated_song_id: int
-    clip_id: int
+    clip_id: str
 
 class SongDetail(BaseModel):
     id: int
