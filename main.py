@@ -450,6 +450,7 @@ async def generate_with_song_description(
 
 
 # ------------- ADD SONG -------------------
+# Define the Pydantic models
 class SongCreate(BaseModel):
     title: str
     user_song_description: Optional[str]
@@ -457,13 +458,32 @@ class SongCreate(BaseModel):
     song_type_id: int
     user_id: int
 
+class SongResponseData(BaseModel):
+    id: int
+    title: str
+    user_song_description: Optional[str]
+    custom_lyrics: Optional[str]
+    created_date: datetime
+    song_type_id: int
+    user_id: int
+
 class SongResponse(BaseModel):
     responseMsg: str
     responseCode: str
-    responseData: SongCreate
+    responseData: Optional[SongResponseData]  # Use SongResponseData here
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 @app.post("/add-songs/", response_model=SongResponse)
 def create_song(song: SongCreate, db: Session = Depends(get_db)):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database connection error")
+    
     try:
         # Prepare the data for inserting
         new_song_data = {
@@ -482,26 +502,26 @@ def create_song(song: SongCreate, db: Session = Depends(get_db)):
         db.refresh(db_song)
 
         # Create a response data object
-        song_response_data = {
-            "id": db_song.id,
-            "title": db_song.title,
-            "user_song_description": db_song.user_song_description,
-            "custom_lyrics": db_song.custom_lyrics,
-            "created_date": db_song.created_date,
-            "song_type_id": db_song.song_type_id,
-            "user_id": db_song.user_id
-        }
+        song_response_data = SongResponseData(
+            id=db_song.id,
+            title=db_song.title,
+            user_song_description=db_song.user_song_description,
+            custom_lyrics=db_song.custom_lyrics,
+            created_date=db_song.created_date,
+            song_type_id=db_song.song_type_id,
+            user_id=db_song.user_id
+        )
 
         # Return success response
         return SongResponse(responseMsg="Song created", responseCode="200", responseData=song_response_data)
 
     except HTTPException as http_exc:
-        return SongResponse(responseMsg=http_exc.detail, responseCode=http_exc.status_code, responseData=None)
+        return SongResponse(responseMsg=http_exc.detail, responseCode=str(http_exc.status_code), responseData=None)
     except Exception as e:
         logging.error(f"Error creating song: {e}")
-        db.rollback()
+        if db:
+            db.rollback()
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
 
 # ------------- ADD SONG -------------------
 

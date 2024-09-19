@@ -17,6 +17,7 @@ class User(Base):
     password = Column(String)
     created_date = Column(DateTime, default=datetime.utcnow)
     disabled = Column(Boolean, default=False)
+    
 class Song(Base):
     __tablename__ = "generated_song"
 
