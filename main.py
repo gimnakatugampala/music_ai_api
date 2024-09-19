@@ -534,7 +534,7 @@ class SongItemCreate(BaseModel):
     audio_stream_url: str
     audio_download_url: Optional[str]
     generated_song_id: int
-    clip_id: int
+    clip_id: str  # Updated to str
 
 class SongItemResponse(BaseModel):
     id: int
@@ -544,7 +544,7 @@ class SongItemResponse(BaseModel):
     audio_stream_url: str
     audio_download_url: Optional[str]
     generated_song_id: int
-    clip_id: int
+    clip_id: str  # Updated to str
 
 class SuccessResponse(BaseModel):
     responseMsg: str

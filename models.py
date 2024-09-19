@@ -17,7 +17,7 @@ class User(Base):
     password = Column(String)
     created_date = Column(DateTime, default=datetime.utcnow)
     disabled = Column(Boolean, default=False)
-    
+
 class Song(Base):
     __tablename__ = "generated_song"
 
@@ -42,7 +42,7 @@ class SongItem(Base):
     audio_stream_url = Column(String, nullable=False)
     audio_download_url = Column(String, nullable=True)
     generated_song_id = Column(Integer, ForeignKey('generated_song.id'), nullable=False)
-    clip_id = Column(Integer, nullable=False)
+    clip_id = Column(String, nullable=False)  # Updated to String
 
     # Define the relationship with Song
     generated_song = relationship("Song", back_populates="song_items")
