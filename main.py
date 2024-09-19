@@ -278,6 +278,7 @@ def save_image(image_data, output_dir):
     return output_path.replace("\\", "/").lstrip('./')
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
+app.mount("/songs", StaticFiles(directory="songs"), name="songs")
 
 
 # ------------- GENERATE IMAGES BASED ON VISUALS ---------------------
@@ -348,42 +349,42 @@ def get_audio_url_from_clip_id(clip_id: str) -> str:
     print("----------------------------------")
     return audio_url
 
-def download_song(clip_id: str):
-    """Download the song from the audio URL in the background and save it to the 'songs' folder."""
-    # Construct the audio URL
-    audio_url = get_audio_url_from_clip_id(clip_id)
+# def download_song(clip_id: str):
+#     """Download the song from the audio URL in the background and save it to the 'songs' folder."""
+#     # Construct the audio URL
+#     audio_url = get_audio_url_from_clip_id(clip_id)
     
-    # Define the directory to store the songs
-    songs_folder = "songs"
+#     # Define the directory to store the songs
+#     songs_folder = "songs"
     
-    # Create the folder if it doesn't exist
-    if not os.path.exists(songs_folder):
-        os.makedirs(songs_folder)
+#     # Create the folder if it doesn't exist
+#     if not os.path.exists(songs_folder):
+#         os.makedirs(songs_folder)
     
-    # Set headers for the request
-    headers = {
-        'Authorization': f'Bearer {os.getenv("AUTH_TOKEN")}',
-        'Referer': 'https://suno.com',
-        'Origin': 'https://suno.com',
-    }
+#     # Set headers for the request
+#     headers = {
+#         'Authorization': f'Bearer {os.getenv("AUTH_TOKEN")}',
+#         'Referer': 'https://suno.com',
+#         'Origin': 'https://suno.com',
+#     }
     
-    # Make the request to download the song
-    response = requests.get(audio_url, headers=headers)
+#     # Make the request to download the song
+#     response = requests.get(audio_url, headers=headers)
     
-    if response.status_code == 200:
-        # Extract the filename from the audio URL
-        filename = audio_url.split('/')[-1]
+#     if response.status_code == 200:
+#         # Extract the filename from the audio URL
+#         filename = audio_url.split('/')[-1]
         
-        # Create the full path where the song will be saved
-        file_path = os.path.join(songs_folder, filename)
+#         # Create the full path where the song will be saved
+#         file_path = os.path.join(songs_folder, filename)
         
-        # Save the song to the specified folder
-        with open(file_path, 'wb') as f:
-            f.write(response.content)
+#         # Save the song to the specified folder
+#         with open(file_path, 'wb') as f:
+#             f.write(response.content)
         
-        print(f"Song downloaded successfully: {file_path}")
-    else:
-        print(f"Failed to download the song: {response.status_code} - {response.text}")
+#         print(f"Song downloaded successfully: {file_path}")
+#     else:
+#         print(f"Failed to download the song: {response.status_code} - {response.text}")
 
 
 @app.post("/generate-song/")
@@ -670,7 +671,58 @@ def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
 
 
 # ----------------------- DOWNLOAD THE SONGS TO THE LOCAL SERVER FORM THE STREAMING LINK --------------------
+def download_song(clip_id: str):
+    """Download the song from the audio URL in the background and save it to the 'songs' folder."""
+    # Construct the audio URL based on the clip_id
+    audio_url = f"https://cdn1.suno.ai/{clip_id}.mp3"
+    
+    # Define the directory to store the songs
+    songs_folder = "songs"
+    
+    # Create the folder if it doesn't exist
+    if not os.path.exists(songs_folder):
+        os.makedirs(songs_folder)
+    
+    # Set headers for the request
+    headers = {
+        'Authorization': f'Bearer {os.getenv("AUTH_TOKEN")}',
+        'Referer': 'https://suno.com',
+        'Origin': 'https://suno.com',
+    }
+    
+    # Make the request to download the song
+    response = requests.get(audio_url, headers=headers)
+    
+    if response.status_code == 200:
+        # Extract the filename from the audio URL
+        filename = audio_url.split('/')[-1]
+        
+        # Create the full path where the song will be saved
+        file_path = os.path.join(songs_folder, filename)
+        
+        # Save the song to the specified folder
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
 
+        # Ensure the path uses forward slashes for the response
+        file_path = file_path.replace("\\", "/")
+        
+        return {"status": "success", "message": f"{file_path}"}
+    else:
+        return {"status": "error", "message": f"Failed to download the song: {response.status_code} - {response.text}"}
+
+
+@app.get("/download-song/{clip_id}")
+def download_song_endpoint(clip_id: str):
+    """Endpoint to download a song based on the clip_id."""
+    try:
+        result = download_song(clip_id)
+        if result['status'] == "success":
+            return {"message": result["message"]}
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ----------------------- DOWNLOAD THE SONGS TO THE LOCAL SERVER FORM THE STREAMING LINK --------------------
