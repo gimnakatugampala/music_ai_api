@@ -11,6 +11,8 @@ from typing import Optional , List
 
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
+
 
 
 
@@ -726,6 +728,33 @@ def download_song_endpoint(clip_id: str):
 
 
 # ----------------------- DOWNLOAD THE SONGS TO THE LOCAL SERVER FORM THE STREAMING LINK --------------------
+
+
+# ------------------- GET AUDIO STREAMING ---------------------
+@app.get("/proxy/audio")
+async def proxy_audio(request: Request, url: str, token: str):
+    try:
+        # Send the request to the provided URL with the provided Authorization, Referer, and Origin headers
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Referer": "https://suno.com",
+            "Origin": "https://suno.com"
+        }
+        
+        response = requests.get(url, headers=headers, stream=True)
+
+        # If the request fails, raise an HTTP exception
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"Error fetching audio: {response.text}")
+
+        # Return the audio stream as a response
+        audio_stream = BytesIO(response.content)
+        return StreamingResponse(audio_stream, media_type="audio/mpeg")
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching audio: {str(e)}")
+    
+    # ------------------------------------
 
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
