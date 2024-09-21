@@ -580,7 +580,9 @@ def create_song_item(song_item: SongItemCreate, db: Session = Depends(get_db)):
             audio_stream_url=db_song_item.audio_stream_url,
             audio_download_url=db_song_item.audio_download_url,
             generated_song_id=db_song_item.generated_song_id,
-            clip_id=db_song_item.clip_id
+            clip_id=db_song_item.clip_id,
+            genre=db_song_item.genre,  # Include genre field
+            lyrics=db_song_item.lyrics   # Include lyrics field
         )
 
         # Return success response
