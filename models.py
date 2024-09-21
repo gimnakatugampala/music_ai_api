@@ -43,6 +43,8 @@ class SongItem(Base):
     audio_download_url = Column(String, nullable=True)
     generated_song_id = Column(Integer, ForeignKey('generated_song.id'), nullable=False)
     clip_id = Column(String, nullable=False)  # Updated to String
+    genre = Column(String, nullable=True)  # New optional column
+    lyrics = Column(Text, nullable=True)   # New optional column
 
     # Define the relationship with Song
     generated_song = relationship("Song", back_populates="song_items")

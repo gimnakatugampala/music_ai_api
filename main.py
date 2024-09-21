@@ -543,6 +543,8 @@ class SongItemCreate(BaseModel):
     audio_download_url: Optional[str]
     generated_song_id: int
     clip_id: str  # Updated to str
+    genre: Optional[str]  # New optional field
+    lyrics: Optional[str]  # New optional field
 
 class SongItemResponse(BaseModel):
     id: int
@@ -553,6 +555,8 @@ class SongItemResponse(BaseModel):
     audio_download_url: Optional[str]
     generated_song_id: int
     clip_id: str  # Updated to str
+    genre: Optional[str]  # New optional field
+    lyrics: Optional[str]  # New optional field
 
 class SuccessResponse(BaseModel):
     responseMsg: str
