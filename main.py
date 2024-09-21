@@ -419,6 +419,8 @@ def generate_song(description_request: SongDescriptionRequest, background_tasks:
     }
 # ---------------------------------------------------
 
+# ---------------- GENERATE CUSTOM SONG BY CUSTOM LYRICS ------------------
+
 @app.post("/generate")
 async def generate(
     data: schemas.CustomModeGenerateParam, token: str = Depends(get_token)
@@ -430,6 +432,9 @@ async def generate(
         raise HTTPException(
             detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+# ---------------- GENERATE CUSTOM SONG BY CUSTOM LYRICS ------------------
+
 
 # ---------------- GENERATE SUNO DESC SONG --------------------
 
@@ -798,11 +803,3 @@ async def fetch_lyrics(lid: str, token: str = Depends(get_token)):
 
 
 
-@app.post("/suno")
-async def generate_song_with_description():
-    try:
-        # Call the asynchronous function
-        result = await initiate_song_generation("A song about schools")
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
