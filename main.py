@@ -607,6 +607,8 @@ class SongItemDetail(BaseModel):
     audio_download_url: Optional[str]
     generated_song_id: int
     clip_id: str
+    genre: Optional[str]  # New optional field
+    lyrics: Optional[str]  # New optional field
 
 class SongDetail(BaseModel):
     id: int
@@ -659,7 +661,9 @@ def get_song_and_items_by_email(email: str, db: Session = Depends(get_db)):
                     audio_stream_url=item.audio_stream_url,
                     audio_download_url=item.audio_download_url,
                     generated_song_id=item.generated_song_id,
-                    clip_id=item.clip_id
+                    clip_id=item.clip_id,
+                    genre=item.genre,  # Include genre field
+                    lyrics=item.lyrics  # Include lyrics field
                 ) for item in song.song_items
             ]
 
