@@ -771,6 +771,48 @@ async def proxy_audio(request: Request, url: str, token: str):
     
     # ------------------------------------
 
+
+
+#  ------------------ GENERATE CHATGPT LYRICS ----------------------
+# Define a Pydantic model for the input JSON data
+class LyricsInput(BaseModel):
+    soundPrompt: str = ""
+    lyricsInput: str
+
+# Define the FastAPI POST endpoint
+@app.post("/generate-chatgpt-lyrics")
+async def generate_lyrics(lyrics_data: LyricsInput):
+    # Prepare headers and body for the request
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    # Prepare the payload for the POST request
+    body = {
+        "json": {
+            "soundPrompt": lyrics_data.soundPrompt,
+            "lyricsInput": lyrics_data.lyricsInput
+        }
+    }
+
+    # Make the POST request to the external API
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://app.riffusion.com/api/trpc/openai.getGPTLyrics",
+                headers=headers,
+                json=body
+            )
+            response.raise_for_status()  # Check for HTTP errors
+            result = response.json()
+            return result
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
+#  ------------------ GENERATE CHATGPT LYRICS ----------------------
+
+
 @app.get("/feed/{aid}")
 async def fetch_feed(aid: str, token: str = Depends(get_token)):
     try:
