@@ -12,7 +12,8 @@ from typing import Optional , List
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
-
+import joblib  # For loading the model
+import assemblyai as aai
 
 
 
@@ -51,6 +52,12 @@ app.add_middleware(
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+
+# Set up AssemblyAI API key
+aai.settings.api_key = os.getenv("AAI_API_KEY")
+transcriber = aai.Transcriber()
+
+
 
 
 @app.get("/")
@@ -781,7 +788,7 @@ class LyricsInput(BaseModel):
 
 # Define the FastAPI POST endpoint
 @app.post("/generate-chatgpt-lyrics")
-async def generate_lyrics(lyrics_data: LyricsInput):
+async def generate_lyrics_by_chatgpt(lyrics_data: LyricsInput):
     # Prepare headers and body for the request
     headers = {
         "Content-Type": "application/json"
@@ -855,3 +862,227 @@ async def fetch_lyrics(lid: str, token: str = Depends(get_token)):
 
 
 
+# ------------------- GET THE MODEL GENRE PREDICTION -----------------
+model = joblib.load('model/lyrics_genre_classifier2.pkl')
+model2 = joblib.load('model/sentiment_analysis.pkl')
+
+
+# Pydantic model to validate incoming requests
+class LyricsRequest(BaseModel):
+    lyrics: str
+
+
+@app.post("/generate/genre/")
+async def generate_lyrics_post(request: Request, token: str = Depends(get_token)):
+    req = await request.json()
+    prompt = req.get("prompt")
+    if prompt is None:
+        raise HTTPException(
+            detail="prompt is required", status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Generate lyrics
+        resp = await generate_lyrics(prompt, token)
+        generated_lyrics = resp.get("generated_lyrics", "")
+        
+        # Classify the generated lyrics
+        # genre = model.predict([generated_lyrics])[0]
+        genre = model.predict([prompt])[0]
+        emotion = model2.predict([prompt])[0]
+
+        print(f'Generated Lyrics is : {prompt}')
+        print(f'Genre is :  {genre}')
+
+        # Return the generated lyrics along with the genre
+        return {
+            "lyrics": generated_lyrics,
+            "genre": genre,
+            "emotion": emotion
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            detail=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ------------------ TRANSCRIBE AUDIO TO GET THE LYRICS ---------------------------
+# Define request model
+class TranscribeRequest(BaseModel):
+    audio_url: str
+
+@app.post("/transcribe/")
+async def transcribe_audio(request: TranscribeRequest):
+    try:
+        transcript = transcriber.transcribe(request.audio_url)
+        return {"transcript": transcript.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ------------------ TRANSCRIBE AUDIO TO GET THE LYRICS ---------------------------
+
+
+#  ---------------------------- GET EXPLORE SONGS -------------------------------
+@app.get("/get-latest-songs", response_model=ApiResponse)
+def get_latest_songs(db: Session = Depends(get_db)):
+    try:
+        # Query for the latest 50 songs
+        songs = db.query(Song).order_by(Song.created_date.desc()).limit(50).all()
+
+        if not songs:
+            return ApiResponse(
+                responseMsg="No Songs Found",
+                responseCode="404",
+                responseData=[]
+            )
+
+        # Prepare response data
+        song_data = []
+        for song in songs:
+            # Convert the SQLAlchemy model instance to the Pydantic model
+            song_item_data = [
+                SongItemDetail(
+                    id=item.id,
+                    cover_img=item.cover_img,
+                    visual_desc=item.visual_desc,
+                    variation=item.variation,
+                    audio_stream_url=item.audio_stream_url,
+                    audio_download_url=item.audio_download_url,
+                    generated_song_id=item.generated_song_id,
+                    clip_id=item.clip_id,
+                    genre=item.genre,  # Include genre field
+                    lyrics=item.lyrics  # Include lyrics field
+                ) for item in song.song_items
+            ]
+
+            song_data.append(SongDetail(
+                id=song.id,
+                title=song.title,
+                created_date=song.created_date,  # Include created_date here
+                song_items=song_item_data
+            ))
+
+        return ApiResponse(
+            responseMsg="Latest songs retrieved successfully",
+            responseCode="200",
+            responseData=song_data
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving songs: {e}")
+
+
+#  ---------------------------- GET EXPLORE SONGS -------------------------------
+
+# ----------------------- GET ALL SONGS ------------------------------
+
+@app.get("/get-all-songs", response_model=ApiResponse)
+def get_latest_songs(db: Session = Depends(get_db)):
+    try:
+        # Query for the latest 50 songs
+        songs = db.query(Song).all()
+
+        if not songs:
+            return ApiResponse(
+                responseMsg="No Songs Found",
+                responseCode="404",
+                responseData=[]
+            )
+
+        # Prepare response data
+        song_data = []
+        for song in songs:
+            song_item_data = [
+                SongItemDetail(
+                    id=item.id,
+                    cover_img=item.cover_img,
+                    visual_desc=item.visual_desc,
+                    variation=item.variation,
+                    audio_stream_url=item.audio_stream_url,
+                    audio_download_url=item.audio_download_url,
+                    generated_song_id=item.generated_song_id,
+                    clip_id=item.clip_id,
+                    genre=item.genre,
+                    lyrics=item.lyrics
+                ) for item in song.song_items
+            ]
+
+            song_data.append(SongDetail(
+                id=song.id,
+                title=song.title,
+                created_date=song.created_date,
+                song_items=song_item_data
+            ))
+
+        return ApiResponse(
+            responseMsg="Latest songs retrieved successfully",
+            responseCode="200",
+            responseData=song_data
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving songs: {e}")
+
+
+# ----------------------- GET ALL SONGS ------------------------------
+
+# ----------------------- GET SONG BY ID -----------------------------------
+@app.get("/get-song-item/{song_item_id}", response_model=ApiResponse)
+def get_song_item(song_item_id: int, db: Session = Depends(get_db)):
+    try:
+        # Query for the song item by its ID
+        song_item = db.query(SongItem).filter(SongItem.id == song_item_id).first()
+
+        if not song_item:
+            return ApiResponse(
+                responseMsg="Song Item Not Found",
+                responseCode="404",
+                responseData=[]
+            )
+
+        # Get the associated song details
+        song = db.query(Song).filter(Song.id == song_item.generated_song_id).first()
+
+        if not song:
+            return ApiResponse(
+                responseMsg="Song Not Found",
+                responseCode="404",
+                responseData=[]
+            )
+
+        # Prepare response data for the song item
+        song_item_data = SongItemDetail(
+            id=song_item.id,
+            cover_img=song_item.cover_img,
+            visual_desc=song_item.visual_desc,
+            variation=song_item.variation,
+            audio_stream_url=song_item.audio_stream_url,
+            audio_download_url=song_item.audio_download_url,
+            generated_song_id=song_item.generated_song_id,
+            clip_id=song_item.clip_id,
+            genre=song_item.genre,
+            lyrics=song_item.lyrics
+        )
+
+        # Prepare response data for the song
+        song_data = SongDetail(
+            id=song.id,
+            title=song.title,
+            created_date=song.created_date,  # Keep as datetime
+            song_items=[song_item_data]  # Wrap the song item in a list
+        )
+
+        return ApiResponse(
+            responseMsg="Song item retrieved successfully",
+            responseCode="200",
+            responseData=[song_data]  # Return a list containing the song data
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving song item: {e}")
+
+
+
+
+# ----------------------- GET SONG BY ID -----------------------------------

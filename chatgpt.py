@@ -1,27 +1,10 @@
-import openai
-from dotenv import load_dotenv
-import os
 
-# Load environment variables from .env file
-load_dotenv()
+import assemblyai as aai
 
-# Set the OpenAI API key from the environment variable
-openai.api_key = os.getenv('OPENAI_API_KEY')
+aai.settings.api_key = "e55c7255e11a408ebecbdefa28600f36"
+transcriber = aai.Transcriber()
 
-# Function to get a response from the chat model
-def get_chat_response(prompt):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",  # Use your desired model
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    
-    return response['choices'][0]['message']['content']
+transcript = transcriber.transcribe("https://cdn1.suno.ai/08d5f041-f46b-4afd-9355-b738282b08f3.mp3")
+# transcript = transcriber.transcribe("./my-local-audio-file.wav")
 
-# Example usage
-if __name__ == "__main__":
-    user_input = "What is a LLM?"
-    response = get_chat_response(user_input)
-    print("Assistant:", response)
+print(transcript.text)

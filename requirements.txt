@@ -4,7 +4,7 @@ fastapi
 uvicorn
 pydantic
 requests
-pyaudio
+pyaudio; platform_system == 'Windows' or platform_system == 'Darwin'
 keyboard
 mutagen
 python-multipart
@@ -16,3 +16,6 @@ pydantic[email]
 bcrypt
 httpx
 openai
+joblib
+scikit-learn
+assemblyai
