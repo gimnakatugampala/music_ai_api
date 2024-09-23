@@ -2,12 +2,14 @@
 
 import json
 import time
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import subprocess 
 from fastapi import APIRouter, HTTPException
 from fastapi import BackgroundTasks
 from typing import Optional , List
+import shutil
+
 
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1086,3 +1088,34 @@ def get_song_item(song_item_id: int, db: Session = Depends(get_db)):
 
 
 # ----------------------- GET SONG BY ID -----------------------------------
+# Ensure the directory exists for uploaded audio files
+AUDIO_DIRECTORY = "audio"
+if not os.path.exists(AUDIO_DIRECTORY):
+    os.makedirs(AUDIO_DIRECTORY)
+
+# Pydantic model to structure the response
+class UploadResponse(BaseModel):
+    file_url: str
+
+@app.post("/upload-audio/", response_model=UploadResponse)
+async def upload_audio(file: UploadFile = File(...)):
+    """
+    Upload an audio file and return its URL or location on the server.
+    """
+    try:
+        # Define the file path where the file will be saved
+        file_location = os.path.join(AUDIO_DIRECTORY, file.filename)
+
+        # Save the uploaded file to the specified directory
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Construct the URL or path to the uploaded file
+        file_url = f"{AUDIO_DIRECTORY}/{file.filename}"
+
+        # Return a JSON response with the file URL
+        return JSONResponse(content={"file_url": file_url})
+
+    except Exception as e:
+        # Handle any errors that occur during file upload
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
