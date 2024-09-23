@@ -443,7 +443,7 @@ async def generate(
 # ---------------- GENERATE CUSTOM SONG BY CUSTOM LYRICS ------------------
 
 
-# ---------------- GENERATE SUNO DESC SONG --------------------
+# ---------------- GENERATE SUNO DESC SONG - FAROOK --------------------
 
 @app.post("/generate/description-mode")
 async def generate_with_song_description(
@@ -862,7 +862,7 @@ async def fetch_lyrics(lid: str, token: str = Depends(get_token)):
 
 
 
-# ------------------- GET THE MODEL GENRE PREDICTION -----------------
+# ------------------- GET THE MODEL GENRE PREDICTION - RIFLAN -----------------
 model = joblib.load('model/lyrics_genre_classifier2.pkl')
 model2 = joblib.load('model/sentiment_analysis.pkl')
 
@@ -923,7 +923,7 @@ async def transcribe_audio(request: TranscribeRequest):
 # ------------------ TRANSCRIBE AUDIO TO GET THE LYRICS ---------------------------
 
 
-#  ---------------------------- GET EXPLORE SONGS -------------------------------
+#  ---------------------------- GET EXPLORE SONGS - NANDANA -------------------------------
 @app.get("/get-latest-songs", response_model=ApiResponse)
 def get_latest_songs(db: Session = Depends(get_db)):
     try:
@@ -975,7 +975,7 @@ def get_latest_songs(db: Session = Depends(get_db)):
 
 #  ---------------------------- GET EXPLORE SONGS -------------------------------
 
-# ----------------------- GET ALL SONGS ------------------------------
+# ----------------------- GET ALL SONGS  - NADANA ------------------------------
 
 @app.get("/get-all-songs", response_model=ApiResponse)
 def get_latest_songs(db: Session = Depends(get_db)):
@@ -1027,7 +1027,7 @@ def get_latest_songs(db: Session = Depends(get_db)):
 
 # ----------------------- GET ALL SONGS ------------------------------
 
-# ----------------------- GET SONG BY ID -----------------------------------
+# ----------------------- GET SONG BY ID - NANDANA -----------------------------------
 @app.get("/get-song-item/{song_item_id}", response_model=ApiResponse)
 def get_song_item(song_item_id: int, db: Session = Depends(get_db)):
     try:
